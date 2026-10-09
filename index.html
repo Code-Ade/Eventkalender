@@ -121,7 +121,7 @@ $("gcreate").onclick = async () => {
   const n = $("gname").value.trim(), p = $("gpw").value;
   if (!n || p.length < 4) { $("gerr").textContent = "Name und ein Passwort mit mindestens 4 Zeichen eingeben."; return; }
   const {data, error} = await sb.rpc("create_group", {p_name: n, p_pw: p});
-  if (error) { $("gerr").textContent = "Gruppe konnte nicht erstellt werden."; return; }
+  if (error) { $("gerr").textContent = "Fehler: " + error.message; return; }
   const url = location.origin + location.pathname + "?g=" + data;
   localStorage.setItem("pw_" + data, p);
   $("gerr").textContent = "";
