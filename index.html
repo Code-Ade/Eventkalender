@@ -17,38 +17,41 @@ label{display:block;font-size:.85rem;color:var(--mute);margin:10px 0 3px}
 input,select{width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;font:inherit;background:#fff;color:var(--ink)}
 .row{display:flex;gap:10px}.row>div{flex:1;min-width:0}
 button{background:var(--acc);color:#fff;border:0;border-radius:8px;padding:11px 16px;font:inherit;font-weight:600;margin-top:14px;cursor:pointer}
-button.ghost{background:none;color:var(--acc);padding:6px 0;margin:0}
+button.ghost{background:none;color:var(--acc);padding:4px 10px 4px 0;margin:0;font-weight:500}
+button.del{color:var(--err)}
 :focus-visible{outline:3px solid #7dd3c8;outline-offset:2px}
 .ev{border-top:1px solid var(--line);padding:12px 0}.ev:first-child{border-top:0}
 .ev b{font-size:1.05rem}.ev .meta{color:var(--mute);font-size:.9rem}
 .tag{display:inline-block;background:#dff3f0;color:#0b524c;border-radius:20px;padding:1px 10px;font-size:.8rem;margin-left:6px}
 .err{color:var(--err);margin-top:10px}.hide{display:none}
-a{color:var(--acc)}
+a{color:var(--acc)}summary{cursor:pointer;font-weight:600}
 </style>
 </head>
 <body>
 <main>
-<!-- ======= HIER EINTRAGEN (Supabase: Project Settings > API) ======= -->
 <script>
-const SUPABASE_URL = "https://jrpxzbymplqroxpmaqhf.supabase.co";
-const SUPABASE_KEY = "sb_publishable_b5u3xVLT7pfg9-Q2TWe-MA_5cCOATQq";
+const SUPABASE_URL = "https://DEIN-PROJEKT.supabase.co";
+const SUPABASE_KEY = "DEIN-ANON-PUBLIC-KEY";
 </script>
 
 <div id="create" class="hide">
   <h1>Neue Eventgruppe</h1>
-  <p class="sub">Lege eine Gruppe an und teile Link und Passwort mit deinen Leuten.</p>
+  <p class="sub">Du wirst Admin der Gruppe. Mitglieder kommen mit Link und Gruppenpasswort.</p>
   <div class="box">
     <label for="gname">Gruppenname</label><input id="gname" maxlength="60">
-    <label for="gpw">Passwort</label><input id="gpw" type="text" maxlength="60">
-    <button id="gcreate">Gruppe erstellen</button>
-    <div id="gout"></div><div id="gerr" class="err"></div>
+    <label for="gpw">Gruppenpasswort (für Mitglieder)</label><input id="gpw" maxlength="60">
+    <label for="gapw">Admin-Passwort (nur für dich)</label><input id="gapw" maxlength="60">
+    <button id="gcreate">Gruppe erstellen</button><div id="gerr" class="err"></div>
   </div>
 </div>
 
 <div id="login" class="hide">
-  <h1>Passwort eingeben</h1>
+  <h1>Anmelden</h1>
   <div class="box">
-    <label for="lpw">Gruppenpasswort</label><input id="lpw" type="password">
+    <label for="lmode">Ich bin</label>
+    <select id="lmode"><option value="member">Mitglied</option><option value="admin">Admin</option></select>
+    <div id="lnamewrap"><label for="lname">Dein Name</label><input id="lname" maxlength="40"></div>
+    <label for="lpw" id="lpwl">Gruppenpasswort</label><input id="lpw" type="password">
     <button id="lgo">Öffnen</button><div id="lerr" class="err"></div>
   </div>
 </div>
@@ -58,7 +61,7 @@ const SUPABASE_KEY = "sb_publishable_b5u3xVLT7pfg9-Q2TWe-MA_5cCOATQq";
   <p class="sub">Trag ein, worauf du Lust hast.</p>
   <div class="box">
     <div class="row">
-      <div><label for="who">Dein Name</label><input id="who" maxlength="40"></div>
+      <div id="whowrap"><label for="who">Name</label><input id="who" maxlength="40"></div>
       <div><label for="kind">Art</label>
         <select id="kind"><option>Konzert</option><option>Comedy-Show</option><option>Stadtfest</option><option>Festival</option><option>Theater</option><option>Sport</option><option>Sonstiges</option></select></div>
     </div>
@@ -71,37 +74,56 @@ const SUPABASE_KEY = "sb_publishable_b5u3xVLT7pfg9-Q2TWe-MA_5cCOATQq";
       <div><label for="price">Preis in € (optional)</label><input id="price" type="number" min="0" step="0.01"></div>
       <div><label for="link">Link (optional)</label><input id="link" type="url" placeholder="https://"></div>
     </div>
-    <button id="add">Event eintragen</button><div id="aerr" class="err"></div>
+    <button id="add">Event eintragen</button>
+    <button id="cancel" class="ghost hide" style="margin-left:12px">Abbrechen</button>
+    <div id="aerr" class="err"></div>
   </div>
   <div class="box">
     <label for="sort" style="margin-top:0">Sortieren nach</label>
     <select id="sort"><option value="date">Datum</option><option value="kind">Art</option><option value="price">Preis</option><option value="who">Eingetragen von</option><option value="title">Veranstaltung</option></select>
     <div id="list"></div>
   </div>
+  <details id="adm" class="box hide">
+    <summary>Admin-Bereich</summary>
+    <p><button class="ghost" id="rg">Gruppenname ändern</button>
+    <button class="ghost" id="pg">Gruppenpasswort ändern</button>
+    <button class="ghost" id="pa">Admin-Passwort ändern</button></p>
+    <div id="mem"></div>
+  </details>
   <button class="ghost" id="share">Link kopieren</button>
+  <button class="ghost" id="out">Abmelden</button>
 </div>
 
 <script>
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 const $ = id => document.getElementById(id);
 const gid = new URLSearchParams(location.search).get("g");
-let pw = "", events = [];
+let cred = "", S = {events: [], members: []}, editId = null;
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const fmt = d => d ? new Date(d + "T00:00").toLocaleDateString("de-DE", {day:"2-digit", month:"2-digit", year:"numeric"}) : "";
 const show = id => ["create","login","app"].forEach(x => $(x).classList.toggle("hide", x !== id));
+const msg = e => /wrong password/.test(e.message) ? "Passwort falsch."
+  : /name taken/.test(e.message) ? "Dieser Name ist schon vergeben. Bitte den Admin, deinen Zugang zurückzusetzen."
+  : "Fehler: " + e.message;
 
 async function load() {
-  const {data, error} = await sb.rpc("get_events", {p_group: gid, p_pw: pw});
+  const {data, error} = await sb.rpc("get_events", {p_group: gid, p_cred: cred});
   if (error) return false;
-  $("title").textContent = data.name;
-  events = data.events;
-  show("app"); render();
+  S = data; $("title").textContent = data.name;
+  $("whowrap").classList.toggle("hide", !data.admin);
+  $("adm").classList.toggle("hide", !data.admin);
+  show("app"); render(); renderMem();
   return true;
+}
+async function act(fn, a) {
+  const {error} = await sb.rpc(fn, {p_group: gid, p_cred: cred, ...a});
+  if (error) { alert(msg(error)); return false; }
+  await load(); return true;
 }
 
 function render() {
   const k = $("sort").value, de = new Intl.Collator("de");
-  const s = [...events].sort((a, b) => {
+  const s = [...S.events].sort((a, b) => {
     if (k === "date") return a.date_from.localeCompare(b.date_from);
     if (k === "price") return (a.price ?? Infinity) - (b.price ?? Infinity);
     return de.compare(a[k] || "", b[k] || "");
@@ -110,50 +132,96 @@ function render() {
     const when = fmt(e.date_from) + (e.date_to ? " – " + fmt(e.date_to) : "");
     const price = e.price != null ? " · " + Number(e.price).toLocaleString("de-DE") + " €" : "";
     const link = /^https?:\/\//i.test(e.link || "") ? ` · <a href="${esc(e.link)}" target="_blank" rel="noopener">Link</a>` : "";
+    const own = S.admin || (S.me && e.member_id === S.me);
+    const btn = own ? `<div><button class="ghost" data-a="edit" data-id="${e.id}">Bearbeiten</button><button class="ghost del" data-a="del" data-id="${e.id}">Löschen</button></div>` : "";
     return `<div class="ev"><b>${esc(e.title)}</b>${e.kind ? `<span class="tag">${esc(e.kind)}</span>` : ""}
-      <div class="meta">${when}${price}${link}</div><div class="meta">von ${esc(e.who)}</div></div>`;
+      <div class="meta">${when}${price}${link}</div><div class="meta">von ${esc(e.who)}</div>${btn}</div>`;
   }).join("") : '<p class="sub" style="margin-top:12px">Noch keine Events. Trag das erste ein.</p>';
+}
+function renderMem() {
+  $("mem").innerHTML = S.members.length ? S.members.map(m => `<div class="ev"><b>${esc(m.name)}</b>${m.claimed ? "" : '<span class="meta"> (Zugang frei)</span>'}
+    <div><button class="ghost" data-a="ren" data-m="${m.id}">Umbenennen</button><button class="ghost" data-a="reset" data-m="${m.id}">Zugang zurücksetzen</button><button class="ghost del" data-a="rem" data-m="${m.id}">Entfernen</button></div></div>`).join("")
+    : '<p class="sub">Noch keine Mitglieder.</p>';
+}
+function resetForm() {
+  ["etitle","dfrom","dto","price","link"].forEach(id => $(id).value = "");
+  editId = null; $("add").textContent = "Event eintragen"; $("cancel").classList.add("hide"); $("aerr").textContent = "";
 }
 
 $("sort").onchange = render;
-
-$("gcreate").onclick = async () => {
-  const n = $("gname").value.trim(), p = $("gpw").value;
-  if (!n || p.length < 4) { $("gerr").textContent = "Name und ein Passwort mit mindestens 4 Zeichen eingeben."; return; }
-  const {data, error} = await sb.rpc("create_group", {p_name: n, p_pw: p});
-  if (error) { $("gerr").textContent = "Fehler: " + error.message; return; }
-  const url = location.origin + location.pathname + "?g=" + data;
-  localStorage.setItem("pw_" + data, p);
-  $("gerr").textContent = "";
-  $("gout").innerHTML = `<p>Fertig. Teile diesen Link und das Passwort:</p><p><a href="${esc(url)}">${esc(url)}</a></p>`;
+$("cancel").onclick = resetForm;
+$("lmode").onchange = () => {
+  const a = $("lmode").value === "admin";
+  $("lnamewrap").classList.toggle("hide", a);
+  $("lpwl").textContent = a ? "Admin-Passwort" : "Gruppenpasswort";
 };
 
-$("lgo").onclick = async () => {
-  pw = $("lpw").value;
-  if (await load()) localStorage.setItem("pw_" + gid, pw);
-  else $("lerr").textContent = "Passwort falsch oder Gruppe nicht gefunden.";
+$("list").onclick = async ev => {
+  const b = ev.target.closest("button"); if (!b) return;
+  const e = S.events.find(x => x.id === b.dataset.id); if (!e) return;
+  if (b.dataset.a === "del") { if (confirm("Event wirklich löschen?")) { await act("delete_event", {p_id: e.id}); } return; }
+  editId = e.id; $("who").value = e.who; $("kind").value = e.kind || "Sonstiges"; $("etitle").value = e.title;
+  $("dfrom").value = e.date_from; $("dto").value = e.date_to || ""; $("price").value = e.price ?? ""; $("link").value = e.link || "";
+  $("add").textContent = "Änderung speichern"; $("cancel").classList.remove("hide");
+  window.scrollTo({top: 0, behavior: "smooth"});
+};
+
+$("mem").onclick = ev => {
+  const b = ev.target.closest("button"); if (!b) return;
+  const id = b.dataset.m, a = b.dataset.a;
+  if (a === "ren") { const n = prompt("Neuer Name?"); if (n && n.trim()) act("rename_member", {p_member: id, p_name: n.trim()}); }
+  if (a === "reset" && confirm("Zugang zurücksetzen? Die Person kann sich danach mit Gruppenpasswort und demselben Namen neu anmelden.")) act("reset_member", {p_member: id});
+  if (a === "rem" && confirm("Mitglied entfernen? Die Einträge bleiben erhalten.")) act("remove_member", {p_member: id});
+};
+
+$("rg").onclick = () => { const n = prompt("Neuer Gruppenname?", S.name); if (n && n.trim()) act("rename_group", {p_name: n.trim()}); };
+$("pg").onclick = () => { const n = prompt("Neues Gruppenpasswort (mind. 4 Zeichen)?"); if (n && n.length >= 4) act("set_passwords", {p_pw: n, p_admin_pw: null}).then(ok => ok && alert("Gespeichert. Gib das neue Passwort an die Gruppe weiter.")); };
+$("pa").onclick = async () => {
+  const n = prompt("Neues Admin-Passwort (mind. 4 Zeichen)?"); if (!n || n.length < 4) return;
+  const {error} = await sb.rpc("set_passwords", {p_group: gid, p_cred: cred, p_pw: null, p_admin_pw: n});
+  if (error) return alert(msg(error));
+  cred = n; localStorage.setItem("c_" + gid, n); alert("Admin-Passwort geändert.");
 };
 
 $("add").onclick = async () => {
-  const v = {p_group: gid, p_pw: pw, p_who: $("who").value.trim(), p_title: $("etitle").value.trim(),
-    p_kind: $("kind").value, p_from: $("dfrom").value || null, p_to: $("dto").value || null,
+  const a = {p_who: $("who").value.trim() || "Admin", p_title: $("etitle").value.trim(), p_kind: $("kind").value,
+    p_from: $("dfrom").value || null, p_to: $("dto").value || null,
     p_price: $("price").value === "" ? null : Number($("price").value), p_link: $("link").value.trim() || null};
-  if (!v.p_who || !v.p_title || !v.p_from) { $("aerr").textContent = "Name, Veranstaltung und Datum sind Pflicht."; return; }
-  const {error} = await sb.rpc("add_event", v);
-  if (error) { $("aerr").textContent = "Eintragen hat nicht geklappt."; return; }
-  $("aerr").textContent = "";
-  localStorage.setItem("who", v.p_who);
-  ["etitle","dfrom","dto","price","link"].forEach(id => $(id).value = "");
-  load();
+  if (!a.p_title || !a.p_from) { $("aerr").textContent = "Veranstaltung und Datum sind Pflicht."; return; }
+  const ok = editId ? await act("update_event", {p_id: editId, ...a}) : await act("add_event", a);
+  if (ok) { if (S.admin) localStorage.setItem("who", a.p_who); resetForm(); }
+};
+
+$("gcreate").onclick = async () => {
+  const n = $("gname").value.trim(), p = $("gpw").value, ap = $("gapw").value;
+  if (!n || p.length < 4 || ap.length < 4) { $("gerr").textContent = "Name sowie beide Passwörter (mind. 4 Zeichen) eingeben."; return; }
+  const {data, error} = await sb.rpc("create_group", {p_name: n, p_pw: p, p_admin_pw: ap});
+  if (error) { $("gerr").textContent = msg(error); return; }
+  localStorage.setItem("c_" + data, ap);
+  location.search = "?g=" + data;
+};
+
+$("lgo").onclick = async () => {
+  if ($("lmode").value === "admin") cred = $("lpw").value;
+  else {
+    const n = $("lname").value.trim();
+    if (!n) { $("lerr").textContent = "Bitte deinen Namen eingeben."; return; }
+    const {data, error} = await sb.rpc("join_group", {p_group: gid, p_pw: $("lpw").value, p_name: n});
+    if (error) { $("lerr").textContent = msg(error); return; }
+    cred = data;
+  }
+  if (await load()) localStorage.setItem("c_" + gid, cred);
+  else $("lerr").textContent = "Passwort falsch.";
 };
 
 $("share").onclick = () => { navigator.clipboard.writeText(location.href); $("share").textContent = "Kopiert"; };
+$("out").onclick = () => { localStorage.removeItem("c_" + gid); location.reload(); };
 
 (async () => {
   $("who").value = localStorage.getItem("who") || "";
   if (!gid) return show("create");
-  pw = localStorage.getItem("pw_" + gid) || "";
-  if (!(pw && await load())) show("login");
+  cred = localStorage.getItem("c_" + gid) || "";
+  if (!(cred && await load())) show("login");
 })();
 </script>
 </main>
