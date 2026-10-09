@@ -1,113 +1,202 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="de" data-mode="auto">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Gemeinsamer Eventkalender</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Eventkalender</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <style>
-:root{--bg:#eef1f6;--card:#fff;--ink:#1b2433;--mute:#5d6b82;--line:#d5dbe6;--acc:#0f766e;--err:#b42318}
-*{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,-apple-system,Segoe UI,sans-serif}
-main{max-width:640px;margin:0 auto;padding:20px 16px 60px}
-h1{font-size:1.5rem;margin:8px 0 4px}
-p.sub{color:var(--mute);margin:0 0 16px}
-.box{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:14px}
-label{display:block;font-size:.85rem;color:var(--mute);margin:10px 0 3px}
-input,select{width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;font:inherit;background:#fff;color:var(--ink)}
-.row{display:flex;gap:10px}.row>div{flex:1;min-width:0}
-button{background:var(--acc);color:#fff;border:0;border-radius:8px;padding:11px 16px;font:inherit;font-weight:600;margin-top:14px;cursor:pointer}
-button.ghost{background:none;color:var(--acc);padding:4px 10px 4px 0;margin:0;font-weight:500}
-button.del{color:var(--err)}
-:focus-visible{outline:3px solid #7dd3c8;outline-offset:2px}
-.ev{border-top:1px solid var(--line);padding:12px 0}.ev:first-child{border-top:0}
-.ev b{font-size:1.05rem}.ev .meta{color:var(--mute);font-size:.9rem}
-.tag{display:inline-block;background:#dff3f0;color:#0b524c;border-radius:20px;padding:1px 10px;font-size:.8rem;margin-left:6px}
-.err{color:var(--err);margin-top:10px}.hide{display:none}
-a{color:var(--acc)}summary{cursor:pointer;font-weight:600}
+:root{--bg:#f5f5f7;--card:#fff;--ink:#1d1d1f;--mute:#6e6e73;--line:rgba(0,0,0,.09);--fill:rgba(118,118,128,.12);--acc:#0071e3;--err:#d70015;color-scheme:light dark}
+@media(prefers-color-scheme:dark){:root[data-mode=auto]{--bg:#000;--card:#1c1c1e;--ink:#f5f5f7;--mute:#98989d;--line:rgba(255,255,255,.12);--fill:rgba(118,118,128,.28)}}
+:root[data-mode=dark]{--bg:#000;--card:#1c1c1e;--ink:#f5f5f7;--mute:#98989d;--line:rgba(255,255,255,.12);--fill:rgba(118,118,128,.28);color-scheme:dark}
+:root[data-mode=light]{color-scheme:light}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 -apple-system,BlinkMacSystemFont,"SF Pro Text","Inter","Segoe UI",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+main{max-width:680px;margin:0 auto;padding:max(26px,env(safe-area-inset-top)) 18px calc(40px + env(safe-area-inset-bottom))}
+h1{font-size:2.15rem;line-height:1.08;font-weight:700;letter-spacing:-.03em;margin:0}
+h3{font-size:1.05rem;margin:22px 0 8px}
+.sub{color:var(--mute);margin:4px 0 0}
+.hide{display:none!important}
+header{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;margin-bottom:22px}
+.fab{width:46px;height:46px;border-radius:50%;border:0;background:var(--acc);color:#fff;font-size:30px;font-weight:300;line-height:1;padding:0 0 3px;cursor:pointer;flex:none;box-shadow:0 4px 14px color-mix(in srgb,var(--acc) 38%,transparent)}
+button{font:inherit}
+:focus-visible{outline:3px solid color-mix(in srgb,var(--acc) 55%,transparent);outline-offset:2px}
+.btn{background:var(--acc);color:#fff;border:0;border-radius:980px;padding:12px 24px;font-weight:600;cursor:pointer}
+.lnk{background:none;border:0;color:var(--acc);font-size:.92rem;padding:4px 16px 4px 0;cursor:pointer}
+.lnk.del{color:var(--err)}
+input,select{width:100%;padding:12px 14px;border:0;border-radius:12px;background:var(--fill);font:inherit;color:var(--ink)}
+input:disabled{opacity:.4}
+label{display:block;font-size:.82rem;color:var(--mute);margin:14px 0 6px}
+.row{display:flex;gap:12px}.row>div{flex:1;min-width:0}
+.chk{display:flex;align-items:center;gap:10px;margin-top:16px}.chk input{width:20px;height:20px;accent-color:var(--acc)}
+.card{background:var(--card);border-radius:20px;padding:20px}
+.wrap{max-width:420px;margin:10vh auto 0}.wrap h1{margin-bottom:18px}
+.err{color:var(--err);margin-top:12px;font-size:.92rem}
+.bar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+.bar select{width:auto;max-width:160px;padding:8px 12px;font-size:.9rem}
+.seg{display:inline-flex;background:var(--fill);border-radius:10px;padding:2px}
+.seg button{border:0;background:none;color:var(--ink);font-size:.9rem;padding:6px 16px;border-radius:8px;cursor:pointer}
+.seg .on{background:var(--card);box-shadow:0 1px 3px rgba(0,0,0,.18);font-weight:600}
+.group{background:var(--card);border-radius:20px;padding:0 18px}
+.ev{display:flex;gap:12px;padding:16px 0;border-top:1px solid var(--line)}.ev:first-child{border-top:0}
+.eb{flex:1;min-width:0}.eb b{font-size:1.06rem;letter-spacing:-.01em}
+.meta{color:var(--mute);font-size:.9rem}.acts{margin-top:6px}
+.tag{display:inline-block;margin-left:8px;padding:1px 10px;border-radius:20px;font-size:.78rem;background:color-mix(in srgb,var(--acc) 14%,transparent);color:var(--acc);vertical-align:2px}
+.star{background:none;border:0;font-size:1.4rem;line-height:1.2;color:var(--mute);cursor:pointer;padding:0;align-self:flex-start;opacity:.55}
+.star.on{color:#ff9f0a;opacity:1}
+.nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.nav b{font-size:1.2rem;letter-spacing:-.02em}
+.nav button{background:none;border:0;color:var(--acc);font-size:1.7rem;line-height:1;padding:2px 14px;cursor:pointer}
+.mgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
+.wd{text-align:center;color:var(--mute);font-size:.78rem;padding:4px 0}
+.cell{background:none;border:0;min-height:68px;border-radius:12px;padding:4px 2px;color:var(--ink);display:flex;flex-direction:column;align-items:center;gap:2px;overflow:hidden;cursor:pointer}
+.cell span{width:26px;height:26px;display:grid;place-items:center;font-size:.9rem;flex:none}
+.cell.today span{background:var(--acc);color:#fff;border-radius:50%}
+.cell.sel{background:var(--fill)}
+.cell i{font-style:normal;font-size:.62rem;line-height:1.25;width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border-radius:4px;padding:0 3px;background:color-mix(in srgb,var(--acc) 16%,transparent);color:var(--acc)}
+.cell em{font-style:normal;font-size:.62rem;color:var(--mute)}
+.ygrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px 12px}
+.ymonth{background:none;border:0;text-align:left;color:var(--ink);padding:6px;border-radius:12px;cursor:pointer}
+.ymonth:hover{background:var(--fill)}
+.ymonth b{display:block;color:var(--acc);margin-bottom:4px}
+.yg{display:grid;grid-template-columns:repeat(7,1fr);font-size:.62rem;text-align:center;gap:1px}
+.yg span{aspect-ratio:1;display:grid;place-items:center;border-radius:50%}
+.yg .has{background:var(--acc);color:#fff}
+.panel{margin-top:26px;background:var(--card);border-radius:20px;padding:16px 18px}
+.panel summary{cursor:pointer;font-weight:600}
+.sw{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:10px 0}
+.sw button{width:30px;height:30px;border-radius:50%;border:0;cursor:pointer;box-shadow:inset 0 0 0 2px rgba(255,255,255,.5)}
+.sw input[type=color]{width:38px;height:30px;padding:0;background:none}
+footer{margin-top:30px;display:flex;flex-wrap:wrap;gap:6px 20px;justify-content:center}
+footer .lnk{padding:4px 0}
+dialog{border:0;padding:22px 20px calc(22px + env(safe-area-inset-bottom));background:var(--card);color:var(--ink);width:100%;max-width:560px;margin:auto auto 0;border-radius:26px 26px 0 0;max-height:92vh;overflow:auto}
+dialog::backdrop{background:rgba(0,0,0,.4);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+@media(min-width:600px){dialog{margin:auto;border-radius:26px}}
+.dh{display:flex;justify-content:space-between;align-items:center}.dh h2{margin:0;font-size:1.4rem;letter-spacing:-.02em}
+details.rec{margin-top:16px;background:var(--fill);border-radius:12px;padding:12px 14px}details.rec summary{cursor:pointer}
+.save{display:flex;justify-content:flex-end;margin-top:20px}
+a{color:var(--acc)}
 </style>
 </head>
 <body>
 <main>
 <script>
-const SUPABASE_URL = "https://jrpxzbymplqroxpmaqhf.supabase.co";
-const SUPABASE_KEY = "sb_publishable_b5u3xVLT7pfg9-Q2TWe-MA_5cCOATQq";
+const SUPABASE_URL = "https://DEIN-PROJEKT.supabase.co";
+const SUPABASE_KEY = "DEIN-ANON-PUBLIC-KEY";
 </script>
 
-<div id="create" class="hide">
+<section id="create" class="hide wrap">
   <h1>Neue Eventgruppe</h1>
-  <p class="sub">Du wirst Admin der Gruppe. Alle anderen kommen mit Link und Gruppenpasswort.</p>
-  <div class="box">
+  <div class="card">
+    <p class="sub" style="margin:0 0 4px">Du wirst Admin. Alle anderen kommen mit Link und Gruppenpasswort.</p>
     <label for="gname">Gruppenname</label><input id="gname" maxlength="60">
     <label for="gpw">Gruppenpasswort (für alle Mitglieder)</label><input id="gpw" maxlength="60">
     <label for="gapw">Admin-Passwort (nur für dich)</label><input id="gapw" maxlength="60">
-    <button id="gcreate">Gruppe erstellen</button><div id="gerr" class="err"></div>
+    <div class="save"><button class="btn" id="gcreate">Gruppe erstellen</button></div><div id="gerr" class="err"></div>
   </div>
-</div>
+</section>
 
-<div id="login" class="hide">
+<section id="login" class="hide wrap">
   <h1>Passwort eingeben</h1>
-  <div class="box">
-    <label for="lpw">Passwort</label><input id="lpw" type="password">
-    <button id="lgo">Öffnen</button><div id="lerr" class="err"></div>
+  <div class="card">
+    <label for="lpw" style="margin-top:0">Passwort</label><input id="lpw" type="password">
+    <div class="save"><button class="btn" id="lgo">Öffnen</button></div><div id="lerr" class="err"></div>
   </div>
-</div>
+</section>
 
-<div id="app" class="hide">
-  <h1 id="title"></h1>
-  <p class="sub">Trag ein, worauf du Lust hast.</p>
-  <div class="box">
-    <div class="row">
-      <div><label for="who">Dein Name</label><input id="who" maxlength="40"></div>
-      <div><label for="kind">Art</label>
-        <select id="kind"><option>Konzert</option><option>Comedy-Show</option><option>Stadtfest</option><option>Festival</option><option>Theater</option><option>Sport</option><option>Sonstiges</option></select></div>
-    </div>
-    <label for="etitle">Veranstaltung</label><input id="etitle" maxlength="120" placeholder="z. B. Eminem in Berlin">
-    <div class="row">
-      <div><label for="dfrom">Datum / von</label><input id="dfrom" type="date"></div>
-      <div><label for="dto">bis (optional)</label><input id="dto" type="date"></div>
-    </div>
-    <div class="row">
-      <div><label for="price">Preis in € (optional)</label><input id="price" type="number" min="0" step="0.01"></div>
-      <div><label for="link">Link (optional)</label><input id="link" type="url" placeholder="https://"></div>
-    </div>
-    <button id="add">Event eintragen</button>
-    <button id="cancel" class="ghost hide" style="margin-left:12px">Abbrechen</button>
-    <div id="aerr" class="err"></div>
+<section id="app" class="hide">
+  <header>
+    <div><h1 id="title"></h1><p class="sub">Worauf habt ihr Lust?</p></div>
+    <button class="fab" id="plus" aria-label="Event hinzufügen">+</button>
+  </header>
+  <div class="bar">
+    <div class="seg" id="vseg"><button data-v="list" class="on">Liste</button><button data-v="cal">Kalender</button></div>
+    <select id="sort" aria-label="Sortieren"><option value="date">Nach Datum</option><option value="star">Wichtige zuerst</option><option value="kind">Nach Art</option><option value="price">Nach Preis</option><option value="who">Nach Name</option><option value="title">Nach Titel</option></select>
+    <div class="seg hide" id="mseg"><button data-m="month" class="on">Monat</button><button data-m="year">Jahr</button></div>
   </div>
-  <div class="box">
-    <label for="sort" style="margin-top:0">Sortieren nach</label>
-    <select id="sort"><option value="date">Datum</option><option value="kind">Art</option><option value="price">Preis</option><option value="who">Eingetragen von</option><option value="title">Veranstaltung</option></select>
-    <div id="list"></div>
-  </div>
-  <details id="adm" class="box hide">
+  <div id="list"></div>
+  <div id="cal" class="hide"></div>
+
+  <details id="adm" class="panel hide">
     <summary>Admin-Bereich</summary>
-    <p><button class="ghost" id="rg">Gruppenname ändern</button>
-    <button class="ghost" id="pg">Gruppenpasswort ändern</button>
-    <button class="ghost" id="pa">Admin-Passwort ändern</button></p>
-    <b>Papierkorb</b>
+    <h3>Aussehen</h3>
+    <div class="sw" id="sw"></div>
+    <label for="tmode">Darstellung</label>
+    <select id="tmode"><option value="auto">Automatisch (Hell/Dunkel)</option><option value="light">Hell</option><option value="dark">Dunkel</option></select>
+    <h3>Gruppe</h3>
+    <button class="lnk" data-x="rg">Gruppenname ändern</button><button class="lnk" data-x="pg">Gruppenpasswort ändern</button><button class="lnk" data-x="pa">Admin-Passwort ändern</button>
+    <h3>Papierkorb</h3>
     <div id="trash"></div>
   </details>
-  <button class="ghost" id="share">Link kopieren</button>
-  <button class="ghost" id="out">Abmelden</button>
-</div>
+
+  <footer>
+    <button class="lnk" data-x="new">Neue Gruppe erstellen</button>
+    <button class="lnk" data-x="all">Alle exportieren (.ics)</button>
+    <button class="lnk" data-x="share">Link kopieren</button>
+    <button class="lnk" data-x="out">Abmelden</button>
+  </footer>
+</section>
+
+<dialog id="dlg">
+  <div class="dh"><h2 id="dtitle"></h2><button class="lnk" id="cancel" style="padding:0">Abbrechen</button></div>
+  <div class="row">
+    <div><label for="who">Dein Name</label><input id="who" maxlength="40"></div>
+    <div><label for="kind">Art</label>
+      <select id="kind"><option>Konzert</option><option>Comedy-Show</option><option>Stadtfest</option><option>Festival</option><option>Theater</option><option>Sport</option><option>Sonstiges</option></select></div>
+  </div>
+  <label for="etitle">Veranstaltung</label><input id="etitle" maxlength="120" placeholder="z. B. Eminem in Berlin">
+  <div class="row">
+    <div><label for="dfrom">Datum / von</label><input id="dfrom" type="date"></div>
+    <div><label for="dto">bis (gleiches Datum = eintägig)</label><input id="dto" type="date"></div>
+  </div>
+  <label class="chk"><input type="checkbox" id="dopen"> Datum noch offen / nicht bekannt</label>
+  <div class="row">
+    <div><label for="price">Preis in € (optional)</label><input id="price" type="number" min="0" step="0.01" inputmode="decimal"></div>
+    <div><label for="link">Link (optional)</label><input id="link" type="url" placeholder="https://"></div>
+  </div>
+  <label class="chk"><input type="checkbox" id="star"> Sehr wichtig ★</label>
+  <details class="rec" id="rec">
+    <summary>Serientermin</summary>
+    <div class="row">
+      <div><label for="rhythm">Rhythmus</label>
+        <select id="rhythm"><option value="d">Täglich</option><option value="w">Wöchentlich</option><option value="b">Alle 2 Wochen</option><option value="m">Monatlich</option><option value="y">Jährlich</option></select></div>
+      <div><label for="rcount">Anzahl Termine (2–52)</label><input id="rcount" type="number" min="2" max="52" value="4" inputmode="numeric"></div>
+    </div>
+  </details>
+  <div id="aerr" class="err"></div>
+  <div class="save"><button class="btn" id="save">Speichern</button></div>
+</dialog>
 
 <script>
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 const $ = id => document.getElementById(id);
 const slug = new URLSearchParams(location.search).get("g");
-let gid = null, cred = "", S = {events: [], trash: []}, editId = null;
+let gid = null, cred = "", S = {events: [], trash: [], theme: {}}, editId = null, dtoAuto = true;
+let view = "list", calMode = "month", selDay = null;
+const now = new Date(), cur = {y: now.getFullYear(), mo: now.getMonth()};
+const WD = ["Mo","Di","Mi","Do","Fr","Sa","So"], ACC = ["#0071e3","#1f9d55","#e5484d","#8e4ec6","#f5a524","#1d1d1f"];
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-const fmt = d => d ? new Date(d + "T00:00").toLocaleDateString("de-DE", {day:"2-digit", month:"2-digit", year:"numeric"}) : "";
+const pd = s => { const [y, m, d] = s.split("-").map(Number); return new Date(y, m - 1, d); };
+const iso = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+const today = iso(now);
+const fmtD = s => pd(s).toLocaleDateString("de-DE", {weekday: "short", day: "2-digit", month: "2-digit", year: "numeric"});
+const when = e => !e.date_from ? "Datum noch offen" : fmtD(e.date_from) + (e.date_to ? " – " + fmtD(e.date_to) : "");
 const show = id => ["create","login","app"].forEach(x => $(x).classList.toggle("hide", x !== id));
 const msg = e => /wrong password/.test(e.message) ? "Passwort falsch." : "Fehler: " + e.message;
-const info = e => `${fmt(e.date_from)}${e.date_to ? " – " + fmt(e.date_to) : ""}${e.price != null ? " · " + Number(e.price).toLocaleString("de-DE") + " €" : ""}`;
 
+function applyTheme(t) {
+  document.documentElement.dataset.mode = t.mode || "auto";
+  document.documentElement.style.setProperty("--acc", t.acc || "#0071e3");
+}
 async function load() {
   const {data, error} = await sb.rpc("get_events", {p_group: gid, p_cred: cred});
   if (error) return false;
-  S = data; $("title").textContent = data.name;
+  S = data; S.theme = data.theme || {};
+  $("title").textContent = data.name; applyTheme(S.theme);
   $("adm").classList.toggle("hide", !data.admin);
+  $("tmode").value = S.theme.mode || "auto";
+  $("sw").innerHTML = ACC.map(c => `<button style="background:${c}" data-acc="${c}" aria-label="Farbe ${c}"></button>`).join("") +
+    `<input type="color" id="tcol" value="${S.theme.acc || "#0071e3"}" aria-label="Eigene Farbe">`;
   show("app"); render(); renderTrash();
   return true;
 }
@@ -117,72 +206,198 @@ async function act(fn, a) {
   await load(); return true;
 }
 
+const card = e => {
+  const link = /^https?:\/\//i.test(e.link || "") ? `<a href="${esc(e.link)}" target="_blank" rel="noopener">Link</a> · ` : "";
+  const price = e.price != null ? Number(e.price).toLocaleString("de-DE") + " € · " : "";
+  return `<article class="ev"><button class="star${e.starred ? " on" : ""}" data-a="star" data-id="${e.id}" aria-pressed="${!!e.starred}" aria-label="Als wichtig markieren">${e.starred ? "★" : "☆"}</button>
+  <div class="eb"><b>${esc(e.title)}</b>${e.kind ? `<span class="tag">${esc(e.kind)}</span>` : ""}
+  <div class="meta">${when(e)}</div><div class="meta">${price}${link}von ${esc(e.who)}</div>
+  <div class="acts"><button class="lnk" data-a="edit" data-id="${e.id}">Bearbeiten</button><button class="lnk" data-a="ics" data-id="${e.id}">Zum Kalender</button><button class="lnk del" data-a="del" data-id="${e.id}">Löschen</button></div></div></article>`;
+};
+const grp = arr => `<div class="group">${arr.map(card).join("")}</div>`;
+
 function render() {
-  const k = $("sort").value, de = new Intl.Collator("de");
+  const cal = view === "cal";
+  $("list").classList.toggle("hide", cal); $("cal").classList.toggle("hide", !cal);
+  $("sort").classList.toggle("hide", cal); $("mseg").classList.toggle("hide", !cal);
+  document.querySelectorAll("#vseg button").forEach(b => b.classList.toggle("on", b.dataset.v === view));
+  document.querySelectorAll("#mseg button").forEach(b => b.classList.toggle("on", b.dataset.m === calMode));
+  cal ? renderCal() : renderList();
+}
+function renderList() {
+  const k = $("sort").value, de = new Intl.Collator("de"), dk = e => e.date_from || "9999-12-31";
   const s = [...S.events].sort((a, b) => {
-    if (k === "date") return a.date_from.localeCompare(b.date_from);
+    if (k === "date") return dk(a).localeCompare(dk(b));
+    if (k === "star") return (b.starred - a.starred) || dk(a).localeCompare(dk(b));
     if (k === "price") return (a.price ?? Infinity) - (b.price ?? Infinity);
     return de.compare(a[k] || "", b[k] || "");
   });
-  $("list").innerHTML = s.length ? s.map(e => {
-    const link = /^https?:\/\//i.test(e.link || "") ? ` · <a href="${esc(e.link)}" target="_blank" rel="noopener">Link</a>` : "";
-    return `<div class="ev"><b>${esc(e.title)}</b>${e.kind ? `<span class="tag">${esc(e.kind)}</span>` : ""}
-      <div class="meta">${info(e)}${link}</div><div class="meta">von ${esc(e.who)}</div>
-      <div><button class="ghost" data-a="edit" data-id="${e.id}">Bearbeiten</button><button class="ghost del" data-a="del" data-id="${e.id}">Löschen</button></div></div>`;
-  }).join("") : '<p class="sub" style="margin-top:12px">Noch keine Events. Trag das erste ein.</p>';
+  $("list").innerHTML = s.length ? grp(s) : '<p class="sub">Noch keine Events. Tippe auf + und trag das erste ein.</p>';
+}
+function byDay() {
+  const m = {};
+  S.events.forEach(e => {
+    if (!e.date_from) return;
+    const d = pd(e.date_from), end = pd(e.date_to || e.date_from);
+    for (let i = 0; d <= end && i < 366; i++) { (m[iso(d)] ||= []).push(e); d.setDate(d.getDate() + 1); }
+  });
+  return m;
+}
+function renderCal() {
+  const m = byDay(), {y, mo} = cur, month = mo => new Date(y, mo, 1);
+  let h;
+  if (calMode === "month") {
+    const first = month(mo), lead = (first.getDay() + 6) % 7, days = new Date(y, mo + 1, 0).getDate();
+    h = `<div class="nav"><button data-n="-1" aria-label="Vorheriger Monat">‹</button><b>${first.toLocaleDateString("de-DE", {month: "long", year: "numeric"})}</b><button data-n="1" aria-label="Nächster Monat">›</button></div>
+    <div class="mgrid">${WD.map(w => `<div class="wd">${w}</div>`).join("")}${"<div></div>".repeat(lead)}`;
+    for (let d = 1; d <= days; d++) {
+      const k = iso(new Date(y, mo, d)), ev = m[k] || [];
+      h += `<button class="cell${k === today ? " today" : ""}${k === selDay ? " sel" : ""}" data-day="${k}"><span>${d}</span>${ev.slice(0, 2).map(e => `<i>${e.starred ? "★ " : ""}${esc(e.title)}</i>`).join("")}${ev.length > 2 ? `<em>+${ev.length - 2}</em>` : ""}</button>`;
+    }
+    h += "</div>";
+    if (selDay) { const sel = m[selDay] || []; h += `<h3>${fmtD(selDay)}</h3>` + (sel.length ? grp(sel) : '<p class="sub">Keine Events an diesem Tag.</p>'); }
+  } else {
+    h = `<div class="nav"><button data-n="-1" aria-label="Vorheriges Jahr">‹</button><b>${y}</b><button data-n="1" aria-label="Nächstes Jahr">›</button></div><div class="ygrid">`;
+    for (let i = 0; i < 12; i++) {
+      const lead = (month(i).getDay() + 6) % 7, days = new Date(y, i + 1, 0).getDate();
+      h += `<button class="ymonth" data-ym="${i}"><b>${month(i).toLocaleDateString("de-DE", {month: "long"})}</b><div class="yg">${"<span></span>".repeat(lead)}` +
+        Array.from({length: days}, (_, j) => `<span${m[iso(new Date(y, i, j + 1))] ? ' class="has"' : ""}>${j + 1}</span>`).join("") + "</div></button>";
+    }
+    h += "</div>";
+  }
+  const open = S.events.filter(e => !e.date_from);
+  if (open.length) h += `<h3>Datum noch offen</h3>` + grp(open);
+  $("cal").innerHTML = h;
 }
 function renderTrash() {
-  $("trash").innerHTML = S.trash.length ? S.trash.map(e => `<div class="ev"><b>${esc(e.title)}</b>${e.kind ? `<span class="tag">${esc(e.kind)}</span>` : ""}
-    <div class="meta">${info(e)} · von ${esc(e.who)}</div><div class="meta">gelöscht am ${new Date(e.deleted_at).toLocaleString("de-DE")}</div>
-    <div><button class="ghost" data-a="res" data-id="${e.id}">Wiederherstellen</button><button class="ghost del" data-a="purge" data-id="${e.id}">Endgültig löschen</button></div></div>`).join("")
+  $("trash").innerHTML = S.trash.length ? S.trash.map(e => `<div class="ev"><div class="eb"><b>${esc(e.title)}</b>
+    <div class="meta">${when(e)} · von ${esc(e.who)}</div><div class="meta">gelöscht am ${new Date(e.deleted_at).toLocaleString("de-DE")}</div>
+    <div class="acts"><button class="lnk" data-a="res" data-id="${e.id}">Wiederherstellen</button><button class="lnk del" data-a="purge" data-id="${e.id}">Endgültig löschen</button></div></div></div>`).join("")
     : '<p class="sub">Der Papierkorb ist leer.</p>';
 }
-function resetForm() {
-  ["etitle","dfrom","dto","price","link"].forEach(id => $(id).value = "");
-  editId = null; $("add").textContent = "Event eintragen"; $("cancel").classList.add("hide"); $("aerr").textContent = "";
+
+/* ---- Export (.ics) ---- */
+const ie = s => String(s || "").replace(/[\\;,]/g, c => "\\" + c).replace(/\n/g, "\\n");
+function dl(list) {
+  const evs = list.filter(e => e.date_from);
+  if (!evs.length) return alert("Für Events ohne Datum ist kein Export möglich.");
+  const L = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Eventkalender//DE", "CALSCALE:GREGORIAN"], st = new Date().toISOString().replace(/[-:]|\.\d+/g, "");
+  evs.forEach(e => {
+    const end = pd(e.date_to || e.date_from); end.setDate(end.getDate() + 1);
+    const desc = [e.kind, e.price != null ? Number(e.price).toLocaleString("de-DE") + " €" : "", e.link, "Eingetragen von " + e.who].filter(Boolean).join("\n");
+    L.push("BEGIN:VEVENT", `UID:${e.id}@eventkalender`, "DTSTAMP:" + st, "DTSTART;VALUE=DATE:" + e.date_from.replace(/-/g, ""),
+      "DTEND;VALUE=DATE:" + iso(end).replace(/-/g, ""), "SUMMARY:" + ie((e.starred ? "★ " : "") + e.title), "DESCRIPTION:" + ie(desc),
+      ...(/^https?:\/\//i.test(e.link || "") ? ["URL:" + e.link] : []), "END:VEVENT");
+  });
+  L.push("END:VCALENDAR");
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([L.join("\r\n")], {type: "text/calendar"}));
+  a.download = (evs.length === 1 ? evs[0].title.replace(/[^\w]+/g, "-").slice(0, 30) : "events") + ".ics";
+  a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 5000);
 }
 
-$("sort").onchange = render;
-$("cancel").onclick = resetForm;
+/* ---- Eingabemaske ---- */
+function syncOpen() {
+  const o = $("dopen").checked;
+  $("dfrom").disabled = $("dto").disabled = o;
+  $("rec").classList.toggle("hide", o || !!editId);
+}
+function openForm(e) {
+  editId = e ? e.id : null;
+  $("dtitle").textContent = e ? "Event bearbeiten" : "Neues Event";
+  $("who").value = e ? e.who : localStorage.getItem("who") || "";
+  $("kind").value = e?.kind || "Konzert"; $("etitle").value = e?.title || "";
+  $("dopen").checked = !!e && !e.date_from;
+  $("dfrom").value = e?.date_from || ""; $("dto").value = e ? (e.date_to || e.date_from || "") : ""; $("dto").min = $("dfrom").value;
+  dtoAuto = !e?.date_to;
+  $("price").value = e?.price ?? ""; $("link").value = e?.link || ""; $("star").checked = !!e?.starred;
+  $("rec").open = false; $("aerr").textContent = ""; syncOpen(); $("dlg").showModal();
+}
+$("dopen").onchange = syncOpen;
+$("dfrom").onchange = () => {
+  const f = $("dfrom").value; $("dto").min = f;
+  if (f && (!$("dto").value || dtoAuto || $("dto").value < f)) { $("dto").value = f; dtoAuto = true; }
+};
+$("dto").onchange = () => { dtoAuto = false; };
+$("plus").onclick = () => openForm(null);
+$("cancel").onclick = () => $("dlg").close();
 
-$("list").onclick = async ev => {
-  const b = ev.target.closest("button"); if (!b) return;
-  const e = S.events.find(x => x.id === b.dataset.id); if (!e) return;
-  if (b.dataset.a === "del") {
-    if (confirm("Event löschen? Der Admin kann es im Papierkorb wiederherstellen.")) { if (editId === e.id) resetForm(); await act("delete_event", {p_id: e.id}); }
-    return;
+function series(from, to, kind, n) {
+  const f = pd(from), len = to ? Math.round((pd(to) - f) / 864e5) : 0, out = [];
+  for (let i = 0; i < n; i++) {
+    let s = new Date(f);
+    if (kind === "d") s.setDate(f.getDate() + i);
+    else if (kind === "w") s.setDate(f.getDate() + 7 * i);
+    else if (kind === "b") s.setDate(f.getDate() + 14 * i);
+    else {
+      const t = new Date(f.getFullYear(), f.getMonth() + (kind === "m" ? i : 12 * i), 1);
+      t.setDate(Math.min(f.getDate(), new Date(t.getFullYear(), t.getMonth() + 1, 0).getDate())); s = t;
+    }
+    const e = new Date(s); e.setDate(s.getDate() + len);
+    out.push([iso(s), len ? iso(e) : null]);
   }
-  editId = e.id; $("who").value = e.who; $("kind").value = e.kind || "Sonstiges"; $("etitle").value = e.title;
-  $("dfrom").value = e.date_from; $("dto").value = e.date_to || ""; $("price").value = e.price ?? ""; $("link").value = e.link || "";
-  $("add").textContent = "Änderung speichern"; $("cancel").classList.remove("hide");
-  window.scrollTo({top: 0, behavior: "smooth"});
+  return out;
+}
+$("save").onclick = async () => {
+  const o = $("dopen").checked;
+  const a = {p_who: $("who").value.trim(), p_title: $("etitle").value.trim(), p_kind: $("kind").value, p_from: o ? null : $("dfrom").value || null, p_to: null,
+    p_price: $("price").value === "" ? null : Number($("price").value), p_link: $("link").value.trim() || null, p_star: $("star").checked};
+  const err = t => { $("aerr").textContent = t; };
+  if (!a.p_who || !a.p_title) return err("Name und Veranstaltung sind Pflicht.");
+  if (!o && !a.p_from) return err("Bitte ein Datum wählen oder „Datum noch offen“ ankreuzen.");
+  if (!o) { const t = $("dto").value; if (t && t < a.p_from) return err("Das Enddatum liegt vor dem Startdatum."); if (t && t > a.p_from) a.p_to = t; }
+  let ok;
+  if (editId) ok = await act("update_event", {p_id: editId, ...a});
+  else if (!o && $("rec").open) {
+    const n = Math.min(52, Math.max(2, Number($("rcount").value) || 2));
+    const rs = await Promise.all(series(a.p_from, a.p_to, $("rhythm").value, n).map(([f, t]) =>
+      sb.rpc("add_event", {p_group: gid, p_cred: cred, ...a, p_from: f, p_to: t})));
+    const bad = rs.find(r => r.error); if (bad) alert(msg(bad.error));
+    await load(); ok = !bad;
+  } else ok = await act("add_event", a);
+  if (ok) { localStorage.setItem("who", a.p_who); $("dlg").close(); }
 };
 
-$("trash").onclick = ev => {
+/* ---- Klicks ---- */
+async function saveTheme(t) { S.theme = t; applyTheme(t); await act("set_theme", {p_theme: t}); }
+$("tmode").onchange = () => saveTheme({...S.theme, mode: $("tmode").value});
+$("app").onchange = ev => { if (ev.target.id === "tcol") saveTheme({...S.theme, acc: ev.target.value}); };
+$("sort").onchange = render;
+
+$("app").onclick = async ev => {
   const b = ev.target.closest("button"); if (!b) return;
-  if (b.dataset.a === "res") act("restore_event", {p_id: b.dataset.id});
-  if (b.dataset.a === "purge" && confirm("Endgültig löschen? Das lässt sich nicht rückgängig machen.")) act("purge_event", {p_id: b.dataset.id});
-};
-
-$("rg").onclick = () => { const n = prompt("Neuer Gruppenname?", S.name); if (n && n.trim()) act("rename_group", {p_name: n.trim()}); };
-$("pg").onclick = async () => {
-  const n = prompt("Neues Gruppenpasswort (mind. 4 Zeichen)?");
-  if (n && n.length >= 4 && await act("set_passwords", {p_pw: n, p_admin_pw: null})) alert("Gespeichert. Gib das neue Passwort an die Gruppe weiter. Alle anderen müssen es beim nächsten Öffnen neu eingeben.");
-};
-$("pa").onclick = async () => {
-  const n = prompt("Neues Admin-Passwort (mind. 4 Zeichen)?"); if (!n || n.length < 4) return;
-  const {error} = await sb.rpc("set_passwords", {p_group: gid, p_cred: cred, p_pw: null, p_admin_pw: n});
-  if (error) return alert(msg(error));
-  cred = n; localStorage.setItem("c_" + slug, n); alert("Admin-Passwort geändert.");
-};
-
-$("add").onclick = async () => {
-  const a = {p_who: $("who").value.trim(), p_title: $("etitle").value.trim(), p_kind: $("kind").value,
-    p_from: $("dfrom").value || null, p_to: $("dto").value || null,
-    p_price: $("price").value === "" ? null : Number($("price").value), p_link: $("link").value.trim() || null};
-  if (!a.p_who || !a.p_title || !a.p_from) { $("aerr").textContent = "Name, Veranstaltung und Datum sind Pflicht."; return; }
-  const ok = editId ? await act("update_event", {p_id: editId, ...a}) : await act("add_event", a);
-  if (ok) { localStorage.setItem("who", a.p_who); resetForm(); }
+  const d = b.dataset, e = d.id && [...S.events, ...S.trash].find(x => x.id === d.id);
+  if (d.a === "edit") return openForm(e);
+  if (d.a === "ics") return dl([e]);
+  if (d.a === "star") return act("star_event", {p_id: d.id, p_star: !e.starred});
+  if (d.a === "res") return act("restore_event", {p_id: d.id});
+  if (d.a === "del" && confirm("Event löschen? Der Admin kann es im Papierkorb wiederherstellen.")) return act("delete_event", {p_id: d.id});
+  if (d.a === "purge" && confirm("Endgültig löschen? Das lässt sich nicht rückgängig machen.")) return act("purge_event", {p_id: d.id});
+  if (d.v) { view = d.v; render(); }
+  if (d.m) { calMode = d.m; render(); }
+  if (d.day) { selDay = d.day; renderCal(); }
+  if (d.ym) { cur.mo = +d.ym; calMode = "month"; render(); }
+  if (d.n) {
+    if (calMode === "year") cur.y += +d.n;
+    else { const t = new Date(cur.y, cur.mo + +d.n, 1); cur.y = t.getFullYear(); cur.mo = t.getMonth(); }
+    renderCal();
+  }
+  if (d.acc) saveTheme({...S.theme, acc: d.acc});
+  if (d.x === "new") location.href = location.pathname;
+  if (d.x === "all") dl(S.events);
+  if (d.x === "share") { navigator.clipboard.writeText(location.href); b.textContent = "Kopiert"; }
+  if (d.x === "out") { localStorage.removeItem("c_" + slug); location.reload(); }
+  if (d.x === "rg") { const n = prompt("Neuer Gruppenname?", S.name); if (n && n.trim()) act("rename_group", {p_name: n.trim()}); }
+  if (d.x === "pg") {
+    const n = prompt("Neues Gruppenpasswort (mind. 4 Zeichen)?");
+    if (n && n.length >= 4 && await act("set_passwords", {p_pw: n, p_admin_pw: null})) alert("Gespeichert. Gib das neue Passwort an die Gruppe weiter. Alle anderen müssen es beim nächsten Öffnen neu eingeben.");
+  }
+  if (d.x === "pa") {
+    const n = prompt("Neues Admin-Passwort (mind. 4 Zeichen)?"); if (!n || n.length < 4) return;
+    const {error} = await sb.rpc("set_passwords", {p_group: gid, p_cred: cred, p_pw: null, p_admin_pw: n});
+    if (error) return alert(msg(error));
+    cred = n; localStorage.setItem("c_" + slug, n); alert("Admin-Passwort geändert.");
+  }
 };
 
 $("gcreate").onclick = async () => {
@@ -194,18 +409,14 @@ $("gcreate").onclick = async () => {
   localStorage.setItem("c_" + data, ap);
   location.search = "?g=" + data;
 };
-
 $("lgo").onclick = async () => {
   cred = $("lpw").value;
   if (await load()) localStorage.setItem("c_" + slug, cred);
   else $("lerr").textContent = "Passwort falsch oder Gruppe nicht gefunden.";
 };
-
-$("share").onclick = () => { navigator.clipboard.writeText(location.href); $("share").textContent = "Kopiert"; };
-$("out").onclick = () => { localStorage.removeItem("c_" + slug); location.reload(); };
+$("lpw").onkeydown = e => { if (e.key === "Enter") $("lgo").click(); };
 
 (async () => {
-  $("who").value = localStorage.getItem("who") || "";
   if (!slug) return show("create");
   const {data} = await sb.rpc("resolve_group", {p_slug: slug});
   gid = data;
