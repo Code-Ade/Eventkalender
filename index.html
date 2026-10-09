@@ -30,8 +30,8 @@ a{color:var(--acc)}summary{cursor:pointer;font-weight:600}
 <body>
 <main>
 <script>
-const SUPABASE_URL = "https://jrpxzbymplqroxpmaqhf.supabase.co";
-const SUPABASE_KEY = "sb_publishable_b5u3xVLT7pfg9-Q2TWe-MA_5cCOATQq";
+const SUPABASE_URL = "https://DEIN-PROJEKT.supabase.co";
+const SUPABASE_KEY = "DEIN-ANON-PUBLIC-KEY";
 </script>
 
 <div id="create" class="hide">
@@ -95,8 +95,8 @@ const SUPABASE_KEY = "sb_publishable_b5u3xVLT7pfg9-Q2TWe-MA_5cCOATQq";
 <script>
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 const $ = id => document.getElementById(id);
-const gid = new URLSearchParams(location.search).get("g");
-let cred = "", S = {events: [], trash: []}, editId = null;
+const slug = new URLSearchParams(location.search).get("g");
+let gid = null, cred = "", S = {events: [], trash: []}, editId = null;
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const fmt = d => d ? new Date(d + "T00:00").toLocaleDateString("de-DE", {day:"2-digit", month:"2-digit", year:"numeric"}) : "";
 const show = id => ["create","login","app"].forEach(x => $(x).classList.toggle("hide", x !== id));
@@ -173,7 +173,7 @@ $("pa").onclick = async () => {
   const n = prompt("Neues Admin-Passwort (mind. 4 Zeichen)?"); if (!n || n.length < 4) return;
   const {error} = await sb.rpc("set_passwords", {p_group: gid, p_cred: cred, p_pw: null, p_admin_pw: n});
   if (error) return alert(msg(error));
-  cred = n; localStorage.setItem("c_" + gid, n); alert("Admin-Passwort geändert.");
+  cred = n; localStorage.setItem("c_" + slug, n); alert("Admin-Passwort geändert.");
 };
 
 $("add").onclick = async () => {
@@ -197,17 +197,20 @@ $("gcreate").onclick = async () => {
 
 $("lgo").onclick = async () => {
   cred = $("lpw").value;
-  if (await load()) localStorage.setItem("c_" + gid, cred);
+  if (await load()) localStorage.setItem("c_" + slug, cred);
   else $("lerr").textContent = "Passwort falsch oder Gruppe nicht gefunden.";
 };
 
 $("share").onclick = () => { navigator.clipboard.writeText(location.href); $("share").textContent = "Kopiert"; };
-$("out").onclick = () => { localStorage.removeItem("c_" + gid); location.reload(); };
+$("out").onclick = () => { localStorage.removeItem("c_" + slug); location.reload(); };
 
 (async () => {
   $("who").value = localStorage.getItem("who") || "";
-  if (!gid) return show("create");
-  cred = localStorage.getItem("c_" + gid) || "";
+  if (!slug) return show("create");
+  const {data} = await sb.rpc("resolve_group", {p_slug: slug});
+  gid = data;
+  if (!gid) { $("lerr").textContent = "Gruppe nicht gefunden. Prüfe den Link."; return show("login"); }
+  cred = localStorage.getItem("c_" + slug) || "";
   if (!(cred && await load())) show("login");
 })();
 </script>
