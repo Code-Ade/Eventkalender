@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gemeinsamer Eventkalender</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<style>
+:root{--bg:#eef1f6;--card:#fff;--ink:#1b2433;--mute:#5d6b82;--line:#d5dbe6;--acc:#0f766e;--err:#b42318}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,-apple-system,Segoe UI,sans-serif}
+main{max-width:640px;margin:0 auto;padding:20px 16px 60px}
+h1{font-size:1.5rem;margin:8px 0 4px}
+p.sub{color:var(--mute);margin:0 0 16px}
+.box{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:14px}
+label{display:block;font-size:.85rem;color:var(--mute);margin:10px 0 3px}
+input,select{width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;font:inherit;background:#fff;color:var(--ink)}
+.row{display:flex;gap:10px}.row>div{flex:1;min-width:0}
+button{background:var(--acc);color:#fff;border:0;border-radius:8px;padding:11px 16px;font:inherit;font-weight:600;margin-top:14px;cursor:pointer}
+button.ghost{background:none;color:var(--acc);padding:6px 0;margin:0}
+:focus-visible{outline:3px solid #7dd3c8;outline-offset:2px}
+.ev{border-top:1px solid var(--line);padding:12px 0}.ev:first-child{border-top:0}
+.ev b{font-size:1.05rem}.ev .meta{color:var(--mute);font-size:.9rem}
+.tag{display:inline-block;background:#dff3f0;color:#0b524c;border-radius:20px;padding:1px 10px;font-size:.8rem;margin-left:6px}
+.err{color:var(--err);margin-top:10px}.hide{display:none}
+a{color:var(--acc)}
+</style>
+</head>
+<body>
+<main>
+<!-- ======= HIER EINTRAGEN (Supabase: Project Settings > API) ======= -->
+<script>
+const SUPABASE_URL = "https://DEIN-PROJEKT.supabase.co";
+const SUPABASE_KEY = "DEIN-ANON-PUBLIC-KEY";
+</script>
+
+<div id="create" class="hide">
+  <h1>Neue Eventgruppe</h1>
+  <p class="sub">Lege eine Gruppe an und teile Link und Passwort mit deinen Leuten.</p>
+  <div class="box">
+    <label for="gname">Gruppenname</label><input id="gname" maxlength="60">
+    <label for="gpw">Passwort</label><input id="gpw" type="text" maxlength="60">
+    <button id="gcreate">Gruppe erstellen</button>
+    <div id="gout"></div><div id="gerr" class="err"></div>
+  </div>
+</div>
+
+<div id="login" class="hide">
+  <h1>Passwort eingeben</h1>
+  <div class="box">
+    <label for="lpw">Gruppenpasswort</label><input id="lpw" type="password">
+    <button id="lgo">Öffnen</button><div id="lerr" class="err"></div>
+  </div>
+</div>
+
+<div id="app" class="hide">
+  <h1 id="title"></h1>
+  <p class="sub">Trag ein, worauf du Lust hast.</p>
+  <div class="box">
+    <div class="row">
+      <div><label for="who">Dein Name</label><input id="who" maxlength="40"></div>
+      <div><label for="kind">Art</label>
+        <select id="kind"><option>Konzert</option><option>Comedy-Show</option><option>Stadtfest</option><option>Festival</option><option>Theater</option><option>Sport</option><option>Sonstiges</option></select></div>
+    </div>
+    <label for="etitle">Veranstaltung</label><input id="etitle" maxlength="120" placeholder="z. B. Eminem in Berlin">
+    <div class="row">
+      <div><label for="dfrom">Datum / von</label><input id="dfrom" type="date"></div>
+      <div><label for="dto">bis (optional)</label><input id="dto" type="date"></div>
+    </div>
+    <div class="row">
+      <div><label for="price">Preis in € (optional)</label><input id="price" type="number" min="0" step="0.01"></div>
+      <div><label for="link">Link (optional)</label><input id="link" type="url" placeholder="https://"></div>
+    </div>
+    <button id="add">Event eintragen</button><div id="aerr" class="err"></div>
+  </div>
+  <div class="box">
+    <label for="sort" style="margin-top:0">Sortieren nach</label>
+    <select id="sort"><option value="date">Datum</option><option value="kind">Art</option><option value="price">Preis</option><option value="who">Eingetragen von</option><option value="title">Veranstaltung</option></select>
+    <div id="list"></div>
+  </div>
+  <button class="ghost" id="share">Link kopieren</button>
+</div>
+
+<script>
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const $ = id => document.getElementById(id);
+const gid = new URLSearchParams(location.search).get("g");
+let pw = "", events = [];
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const fmt = d => d ? new Date(d + "T00:00").toLocaleDateString("de-DE", {day:"2-digit", month:"2-digit", year:"numeric"}) : "";
+const show = id => ["create","login","app"].forEach(x => $(x).classList.toggle("hide", x !== id));
+
+async function load() {
+  const {data, error} = await sb.rpc("get_events", {p_group: gid, p_pw: pw});
+  if (error) return false;
+  $("title").textContent = data.name;
+  events = data.events;
+  show("app"); render();
+  return true;
+}
+
+function render() {
+  const k = $("sort").value, de = new Intl.Collator("de");
+  const s = [...events].sort((a, b) => {
+    if (k === "date") return a.date_from.localeCompare(b.date_from);
+    if (k === "price") return (a.price ?? Infinity) - (b.price ?? Infinity);
+    return de.compare(a[k] || "", b[k] || "");
+  });
+  $("list").innerHTML = s.length ? s.map(e => {
+    const when = fmt(e.date_from) + (e.date_to ? " – " + fmt(e.date_to) : "");
+    const price = e.price != null ? " · " + Number(e.price).toLocaleString("de-DE") + " €" : "";
+    const link = /^https?:\/\//i.test(e.link || "") ? ` · <a href="${esc(e.link)}" target="_blank" rel="noopener">Link</a>` : "";
+    return `<div class="ev"><b>${esc(e.title)}</b>${e.kind ? `<span class="tag">${esc(e.kind)}</span>` : ""}
+      <div class="meta">${when}${price}${link}</div><div class="meta">von ${esc(e.who)}</div></div>`;
+  }).join("") : '<p class="sub" style="margin-top:12px">Noch keine Events. Trag das erste ein.</p>';
+}
+
+$("sort").onchange = render;
+
+$("gcreate").onclick = async () => {
+  const n = $("gname").value.trim(), p = $("gpw").value;
+  if (!n || p.length < 4) { $("gerr").textContent = "Name und ein Passwort mit mindestens 4 Zeichen eingeben."; return; }
+  const {data, error} = await sb.rpc("create_group", {p_name: n, p_pw: p});
+  if (error) { $("gerr").textContent = "Gruppe konnte nicht erstellt werden."; return; }
+  const url = location.origin + location.pathname + "?g=" + data;
+  localStorage.setItem("pw_" + data, p);
+  $("gerr").textContent = "";
+  $("gout").innerHTML = `<p>Fertig. Teile diesen Link und das Passwort:</p><p><a href="${esc(url)}">${esc(url)}</a></p>`;
+};
+
+$("lgo").onclick = async () => {
+  pw = $("lpw").value;
+  if (await load()) localStorage.setItem("pw_" + gid, pw);
+  else $("lerr").textContent = "Passwort falsch oder Gruppe nicht gefunden.";
+};
+
+$("add").onclick = async () => {
+  const v = {p_group: gid, p_pw: pw, p_who: $("who").value.trim(), p_title: $("etitle").value.trim(),
+    p_kind: $("kind").value, p_from: $("dfrom").value || null, p_to: $("dto").value || null,
+    p_price: $("price").value === "" ? null : Number($("price").value), p_link: $("link").value.trim() || null};
+  if (!v.p_who || !v.p_title || !v.p_from) { $("aerr").textContent = "Name, Veranstaltung und Datum sind Pflicht."; return; }
+  const {error} = await sb.rpc("add_event", v);
+  if (error) { $("aerr").textContent = "Eintragen hat nicht geklappt."; return; }
+  $("aerr").textContent = "";
+  localStorage.setItem("who", v.p_who);
+  ["etitle","dfrom","dto","price","link"].forEach(id => $(id).value = "");
+  load();
+};
+
+$("share").onclick = () => { navigator.clipboard.writeText(location.href); $("share").textContent = "Kopiert"; };
+
+(async () => {
+  $("who").value = localStorage.getItem("who") || "";
+  if (!gid) return show("create");
+  pw = localStorage.getItem("pw_" + gid) || "";
+  if (!(pw && await load())) show("login");
+})();
+</script>
+</main>
+</body>
+</html>
