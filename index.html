@@ -26,7 +26,7 @@ button{font:inherit}
 .lnk.del{color:var(--err)}
 input,select{width:100%;padding:12px 14px;border:0;border-radius:12px;background:var(--fill);font:inherit;color:var(--ink)}
 input:disabled{opacity:.4}
-input[type=date]{-webkit-appearance:none;appearance:none;display:block;min-height:46px;text-align:left}
+input[type=date],input[type=time]{-webkit-appearance:none;appearance:none;display:block;min-height:46px;text-align:left}
 label{display:block;font-size:.82rem;color:var(--mute);margin:14px 0 6px}
 .row{display:flex;gap:12px}.row>div{flex:1;min-width:0}
 .chk{display:flex;align-items:center;gap:10px;margin-top:16px}.chk input{width:20px;height:20px;accent-color:var(--acc)}
@@ -77,14 +77,18 @@ dialog::backdrop{background:rgba(0,0,0,.4);backdrop-filter:blur(8px);-webkit-bac
 .dh{display:flex;justify-content:space-between;align-items:center}.dh h2{margin:0;font-size:1.4rem;letter-spacing:-.02em}
 .hint{color:var(--mute);font-size:.82rem;margin:6px 0 0}
 .save{display:flex;justify-content:flex-end;margin-top:20px}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}
+.chip{display:inline-flex;align-items:center;background:var(--fill);border-radius:980px;padding:5px 4px 5px 14px;font-size:.9rem}
+.chip button{background:none;border:0;color:var(--mute);font-size:1.15rem;line-height:1;cursor:pointer;padding:0 8px}
+.addk{display:flex;gap:8px;margin-top:8px}.addk input{flex:1}.addk .btn{padding:10px 18px}
 a{color:var(--acc)}
 </style>
 </head>
 <body>
 <main>
 <script>
-const SUPABASE_URL = "https://jrpxzbymplqroxpmaqhf.supabase.co";
-const SUPABASE_KEY = "sb_publishable_b5u3xVLT7pfg9-Q2TWe-MA_5cCOATQq";
+const SUPABASE_URL = "https://DEIN-PROJEKT.supabase.co";
+const SUPABASE_KEY = "DEIN-ANON-PUBLIC-KEY";
 </script>
 
 <section id="create" class="hide wrap">
@@ -125,6 +129,9 @@ const SUPABASE_KEY = "sb_publishable_b5u3xVLT7pfg9-Q2TWe-MA_5cCOATQq";
     <div class="sw" id="sw"></div>
     <label for="tmode">Darstellung</label>
     <select id="tmode"><option value="auto">Automatisch (Hell/Dunkel)</option><option value="light">Hell</option><option value="dark">Dunkel</option></select>
+    <h3>Arten</h3>
+    <div class="chips" id="kinds"></div>
+    <div class="addk"><input id="nkind" maxlength="30" placeholder="Neue Art, z. B. Restaurant" aria-label="Neue Art"><button class="btn" data-x="addkind">Hinzufügen</button></div>
     <h3>Gruppe</h3>
     <button class="lnk" data-x="rg">Gruppenname ändern</button><button class="lnk" data-x="pg">Gruppenpasswort ändern</button><button class="lnk" data-x="pa">Admin-Passwort ändern</button>
     <h3>Papierkorb</h3>
@@ -144,12 +151,16 @@ const SUPABASE_KEY = "sb_publishable_b5u3xVLT7pfg9-Q2TWe-MA_5cCOATQq";
   <div class="row">
     <div><label for="who">Dein Name</label><input id="who" maxlength="40"></div>
     <div><label for="kind">Art</label>
-      <select id="kind"><option>Konzert</option><option>Comedy-Show</option><option>Stadtfest</option><option>Festival</option><option>Theater</option><option>Sport</option><option>Sonstiges</option></select></div>
+      <select id="kind"></select></div>
   </div>
   <label for="etitle">Veranstaltung</label><input id="etitle" maxlength="120" placeholder="z. B. Eminem in Berlin">
   <label for="dfrom">Datum / von</label><input id="dfrom" type="date">
   <label for="dto">bis (gleiches Datum = eintägig)</label><input id="dto" type="date">
   <label class="chk"><input type="checkbox" id="dopen"> Datum noch offen / nicht bekannt</label>
+  <div class="row">
+    <div><label for="tfrom">Uhrzeit von (optional)</label><input id="tfrom" type="time"></div>
+    <div><label for="tto">bis (optional)</label><input id="tto" type="time"></div>
+  </div>
   <div class="row">
     <div><label for="price">Preis in € (optional)</label><input id="price" type="number" min="0" step="0.01" inputmode="decimal"></div>
     <div><label for="link">Link (optional)</label><input id="link" type="url" placeholder="https://"></div>
@@ -181,7 +192,22 @@ const pd = s => { const [y, m, d] = s.split("-").map(Number); return new Date(y,
 const iso = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 const today = iso(now);
 const fmtD = s => pd(s).toLocaleDateString("de-DE", {weekday: "short", day: "2-digit", month: "2-digit", year: "numeric"});
-const when = e => !e.date_from ? "Datum noch offen" : fmtD(e.date_from) + (e.date_to ? " – " + fmtD(e.date_to) : "");
+const tm = t => t ? t.slice(0, 5) : "";
+const when = e => {
+  if (!e.date_from) return "Datum noch offen";
+  const f = tm(e.time_from), t = tm(e.time_to);
+  if (e.date_to) return `${fmtD(e.date_from)}${f ? ", " + f + " Uhr" : ""} – ${fmtD(e.date_to)}${t ? ", " + t + " Uhr" : ""}`;
+  return fmtD(e.date_from) + (f ? ", " + f + (t ? "–" + t : "") + " Uhr" : t ? ", bis " + t + " Uhr" : "");
+};
+const KINDS = ["Konzert", "Comedy-Show", "Stadtfest", "Festival", "Theater", "Sport", "Sonstiges"];
+const kinds = () => S.theme.kinds?.length ? S.theme.kinds : KINDS;
+function fillKinds(sel) {
+  const k = [...kinds()]; if (sel && !k.includes(sel)) k.push(sel);
+  $("kind").innerHTML = k.map(x => `<option>${esc(x)}</option>`).join(""); $("kind").value = sel || k[0];
+}
+function renderKinds() {
+  $("kinds").innerHTML = kinds().map((k, i) => `<span class="chip">${esc(k)}<button data-k="${i}" aria-label="${esc(k)} entfernen">×</button></span>`).join("");
+}
 const show = id => ["create","login","app"].forEach(x => $(x).classList.toggle("hide", x !== id));
 const msg = e => /wrong password/.test(e.message) ? "Passwort falsch." : "Fehler: " + e.message;
 
@@ -198,7 +224,7 @@ async function load() {
   $("tmode").value = S.theme.mode || "auto";
   $("sw").innerHTML = ACC.map(c => `<button style="background:${c}" data-acc="${c}" aria-label="Farbe ${c}"></button>`).join("") +
     `<input type="color" id="tcol" value="${S.theme.acc || "#0071e3"}" aria-label="Eigene Farbe">`;
-  show("app"); render(); renderTrash();
+  show("app"); render(); renderTrash(); renderKinds();
   return true;
 }
 async function act(fn, a) {
@@ -226,7 +252,7 @@ function render() {
   cal ? renderCal() : renderList();
 }
 function renderList() {
-  const k = $("sort").value, de = new Intl.Collator("de"), dk = e => e.date_from || "9999-12-31";
+  const k = $("sort").value, de = new Intl.Collator("de"), dk = e => (e.date_from || "9999-12-31") + (e.time_from || "");
   const s = [...S.events].sort((a, b) => {
     if (k === "date") return dk(a).localeCompare(dk(b));
     if (k === "star") return (b.starred - a.starred) || dk(a).localeCompare(dk(b));
@@ -253,7 +279,7 @@ function renderCal() {
     <div class="mgrid">${WD.map(w => `<div class="wd">${w}</div>`).join("")}${"<div></div>".repeat(lead)}`;
     for (let d = 1; d <= days; d++) {
       const k = iso(new Date(y, mo, d)), ev = m[k] || [];
-      h += `<button class="cell${k === today ? " today" : ""}${k === selDay ? " sel" : ""}" data-day="${k}"><span>${d}</span>${ev.slice(0, 2).map(e => `<i>${e.starred ? "★ " : ""}${esc(e.title)}</i>`).join("")}${ev.length > 2 ? `<em>+${ev.length - 2}</em>` : ""}</button>`;
+      h += `<button class="cell${k === today ? " today" : ""}${k === selDay ? " sel" : ""}" data-day="${k}"><span>${d}</span>${ev.slice(0, 2).map(e => `<i>${e.starred ? "★ " : ""}${e.time_from ? tm(e.time_from) + " " : ""}${esc(e.title)}</i>`).join("")}${ev.length > 2 ? `<em>+${ev.length - 2}</em>` : ""}</button>`;
     }
     h += "</div>";
     if (selDay) { const sel = m[selDay] || []; h += `<h3>${fmtD(selDay)}</h3>` + (sel.length ? grp(sel) : '<p class="sub">Keine Events an diesem Tag.</p>'); }
@@ -279,6 +305,14 @@ function renderTrash() {
 
 /* ---- Export (.ics) ---- */
 const ie = s => String(s || "").replace(/[\\;,]/g, c => "\\" + c).replace(/\n/g, "\\n");
+function times(e, end) {
+  const dt = (d, t) => d.replace(/-/g, "") + "T" + t.slice(0, 5).replace(":", "") + "00";
+  if (!e.time_from) return ["DTSTART;VALUE=DATE:" + e.date_from.replace(/-/g, ""), "DTEND;VALUE=DATE:" + iso(end).replace(/-/g, "")];
+  const last = e.date_to || e.date_from; let stop;
+  if (e.time_to) stop = dt(last, e.time_to);
+  else { const x = new Date(`${last}T${tm(e.time_from)}:00`); x.setHours(x.getHours() + 2); stop = dt(iso(x), String(x.getHours()).padStart(2, "0") + ":" + String(x.getMinutes()).padStart(2, "0")); }
+  return ["DTSTART:" + dt(e.date_from, e.time_from), "DTEND:" + stop];
+}
 function dl(list) {
   const evs = list.filter(e => e.date_from);
   if (!evs.length) return alert("Für Events ohne Datum ist kein Export möglich.");
@@ -286,8 +320,8 @@ function dl(list) {
   evs.forEach(e => {
     const end = pd(e.date_to || e.date_from); end.setDate(end.getDate() + 1);
     const desc = [e.kind, e.price != null ? Number(e.price).toLocaleString("de-DE") + " €" : "", e.link, "Eingetragen von " + e.who].filter(Boolean).join("\n");
-    L.push("BEGIN:VEVENT", `UID:${e.id}@eventkalender`, "DTSTAMP:" + st, "DTSTART;VALUE=DATE:" + e.date_from.replace(/-/g, ""),
-      "DTEND;VALUE=DATE:" + iso(end).replace(/-/g, ""), "SUMMARY:" + ie((e.starred ? "★ " : "") + e.title), "DESCRIPTION:" + ie(desc),
+    L.push("BEGIN:VEVENT", `UID:${e.id}@eventkalender`, "DTSTAMP:" + st, times(e, end)[0],
+      times(e, end)[1], "SUMMARY:" + ie((e.starred ? "★ " : "") + e.title), "DESCRIPTION:" + ie(desc),
       ...(/^https?:\/\//i.test(e.link || "") ? ["URL:" + e.link] : []), "END:VEVENT");
   });
   L.push("END:VCALENDAR");
@@ -300,14 +334,14 @@ function dl(list) {
 /* ---- Eingabemaske ---- */
 function syncOpen() {
   const o = $("dopen").checked;
-  $("dfrom").disabled = $("dto").disabled = o;
+  $("dfrom").disabled = $("dto").disabled = $("tfrom").disabled = $("tto").disabled = o;
   $("recwrap").classList.toggle("hide", o || !!editId);
 }
 function openForm(e) {
   editId = e ? e.id : null;
   $("dtitle").textContent = e ? "Event bearbeiten" : "Neues Event";
   $("who").value = e ? e.who : localStorage.getItem("who") || "";
-  $("kind").value = e?.kind || "Konzert"; $("etitle").value = e?.title || "";
+  fillKinds(e?.kind); $("etitle").value = e?.title || ""; $("tfrom").value = tm(e?.time_from); $("tto").value = tm(e?.time_to);
   $("dopen").checked = !!e && !e.date_from;
   $("dfrom").value = e?.date_from || ""; $("dto").value = e ? (e.date_to || e.date_from || "") : ""; $("dto").min = $("dfrom").value;
   dtoAuto = !e?.date_to;
@@ -346,11 +380,14 @@ function series(from, to, kind, n) {
 $("save").onclick = async () => {
   const o = $("dopen").checked;
   const a = {p_who: $("who").value.trim(), p_title: $("etitle").value.trim(), p_kind: $("kind").value, p_from: o ? null : $("dfrom").value || null, p_to: null,
+    p_tfrom: o ? null : $("tfrom").value || null, p_tto: o ? null : $("tto").value || null,
     p_price: $("price").value === "" ? null : Number($("price").value), p_link: $("link").value.trim() || null, p_star: $("star").checked};
   const err = t => { $("aerr").textContent = t; };
   if (!a.p_who || !a.p_title) return err("Name und Veranstaltung sind Pflicht.");
   if (!o && !a.p_from) return err("Bitte ein Datum wählen oder „Datum noch offen“ ankreuzen.");
   if (!o) { const t = $("dto").value; if (t && t < a.p_from) return err("Das Enddatum liegt vor dem Startdatum."); if (t && t > a.p_from) a.p_to = t; }
+  if (a.p_tto && !a.p_tfrom) return err("Bitte auch eine Startzeit angeben.");
+  if (a.p_tfrom && a.p_tto && !a.p_to && a.p_tto < a.p_tfrom) return err("Die Endzeit liegt vor der Startzeit.");
   let ok;
   if (editId) ok = await act("update_event", {p_id: editId, ...a});
   else if (!o && $("rec").checked) {
@@ -378,6 +415,10 @@ $("app").onclick = async ev => {
   if (d.a === "res") return act("restore_event", {p_id: d.id});
   if (d.a === "del" && confirm("Event löschen? Der Admin kann es im Papierkorb wiederherstellen.")) return act("delete_event", {p_id: d.id});
   if (d.a === "purge" && confirm("Endgültig löschen? Das lässt sich nicht rückgängig machen.")) return act("purge_event", {p_id: d.id});
+  if (d.k !== undefined) {
+    if (kinds().length <= 1) return alert("Mindestens eine Art muss bleiben.");
+    const l = [...kinds()]; l.splice(+d.k, 1); return saveTheme({...S.theme, kinds: l});
+  }
   if (d.v) { view = d.v; render(); }
   if (d.m) { calMode = d.m; render(); }
   if (d.day) { selDay = d.day; renderCal(); }
@@ -388,6 +429,11 @@ $("app").onclick = async ev => {
     renderCal();
   }
   if (d.acc) saveTheme({...S.theme, acc: d.acc});
+  if (d.x === "addkind") {
+    const n = $("nkind").value.trim(); if (!n) return;
+    if (kinds().some(k => k.toLowerCase() === n.toLowerCase())) return alert("Diese Art gibt es schon.");
+    $("nkind").value = ""; return saveTheme({...S.theme, kinds: [...kinds(), n]});
+  }
   if (d.x === "new") location.href = location.pathname;
   if (d.x === "all") dl(S.events);
   if (d.x === "share") { navigator.clipboard.writeText(location.href); b.textContent = "Kopiert"; }
@@ -423,9 +469,13 @@ $("lpw").onkeydown = e => { if (e.key === "Enter") $("lgo").click(); };
 
 (async () => {
   if (!slug) return show("create");
-  const {data} = await sb.rpc("resolve_group", {p_slug: slug});
+  const {data, error} = await sb.rpc("resolve_group", {p_slug: slug});
   gid = data;
-  if (!gid) { $("lerr").textContent = "Gruppe nicht gefunden. Prüfe den Link."; return show("login"); }
+  if (!gid) {
+    $("lerr").textContent = SUPABASE_URL.includes("DEIN-PROJEKT") ? "Die Supabase-Zugangsdaten in index.html fehlen noch."
+      : error ? "Fehler: " + error.message : "Gruppe nicht gefunden. Prüfe den Link.";
+    return show("login");
+  }
   cred = localStorage.getItem("c_" + slug) || "";
   if (!(cred && await load())) show("login");
 })();
