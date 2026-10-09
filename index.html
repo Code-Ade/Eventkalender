@@ -26,6 +26,7 @@ button{font:inherit}
 .lnk.del{color:var(--err)}
 input,select{width:100%;padding:12px 14px;border:0;border-radius:12px;background:var(--fill);font:inherit;color:var(--ink)}
 input:disabled{opacity:.4}
+input[type=date]{-webkit-appearance:none;appearance:none;display:block;min-height:46px;text-align:left}
 label{display:block;font-size:.82rem;color:var(--mute);margin:14px 0 6px}
 .row{display:flex;gap:12px}.row>div{flex:1;min-width:0}
 .chk{display:flex;align-items:center;gap:10px;margin-top:16px}.chk input{width:20px;height:20px;accent-color:var(--acc)}
@@ -69,11 +70,12 @@ label{display:block;font-size:.82rem;color:var(--mute);margin:14px 0 6px}
 .sw input[type=color]{width:38px;height:30px;padding:0;background:none}
 footer{margin-top:30px;display:flex;flex-wrap:wrap;gap:6px 20px;justify-content:center}
 footer .lnk{padding:4px 0}
-dialog{border:0;padding:22px 20px calc(22px + env(safe-area-inset-bottom));background:var(--card);color:var(--ink);width:100%;max-width:560px;margin:auto auto 0;border-radius:26px 26px 0 0;max-height:92vh;overflow:auto}
+dialog{border:0;padding:22px 20px calc(22px + env(safe-area-inset-bottom));background:var(--card);color:var(--ink);width:100%;max-width:560px;margin:auto auto 0;border-radius:26px 26px 0 0;max-height:92vh;max-height:92dvh;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+html.lock,html.lock body{overflow:hidden}
 dialog::backdrop{background:rgba(0,0,0,.4);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
 @media(min-width:600px){dialog{margin:auto;border-radius:26px}}
 .dh{display:flex;justify-content:space-between;align-items:center}.dh h2{margin:0;font-size:1.4rem;letter-spacing:-.02em}
-details.rec{margin-top:16px;background:var(--fill);border-radius:12px;padding:12px 14px}details.rec summary{cursor:pointer}
+.hint{color:var(--mute);font-size:.82rem;margin:6px 0 0}
 .save{display:flex;justify-content:flex-end;margin-top:20px}
 a{color:var(--acc)}
 </style>
@@ -81,8 +83,8 @@ a{color:var(--acc)}
 <body>
 <main>
 <script>
-const SUPABASE_URL = "https://jrpxzbymplqroxpmaqhf.supabase.co";
-const SUPABASE_KEY = "sb_publishable_b5u3xVLT7pfg9-Q2TWe-MA_5cCOATQq";
+const SUPABASE_URL = "https://DEIN-PROJEKT.supabase.co";
+const SUPABASE_KEY = "DEIN-ANON-PUBLIC-KEY";
 </script>
 
 <section id="create" class="hide wrap">
@@ -145,24 +147,23 @@ const SUPABASE_KEY = "sb_publishable_b5u3xVLT7pfg9-Q2TWe-MA_5cCOATQq";
       <select id="kind"><option>Konzert</option><option>Comedy-Show</option><option>Stadtfest</option><option>Festival</option><option>Theater</option><option>Sport</option><option>Sonstiges</option></select></div>
   </div>
   <label for="etitle">Veranstaltung</label><input id="etitle" maxlength="120" placeholder="z. B. Eminem in Berlin">
-  <div class="row">
-    <div><label for="dfrom">Datum / von</label><input id="dfrom" type="date"></div>
-    <div><label for="dto">bis (gleiches Datum = eintägig)</label><input id="dto" type="date"></div>
-  </div>
+  <label for="dfrom">Datum / von</label><input id="dfrom" type="date">
+  <label for="dto">bis (gleiches Datum = eintägig)</label><input id="dto" type="date">
   <label class="chk"><input type="checkbox" id="dopen"> Datum noch offen / nicht bekannt</label>
   <div class="row">
     <div><label for="price">Preis in € (optional)</label><input id="price" type="number" min="0" step="0.01" inputmode="decimal"></div>
     <div><label for="link">Link (optional)</label><input id="link" type="url" placeholder="https://"></div>
   </div>
   <label class="chk"><input type="checkbox" id="star"> Sehr wichtig ★</label>
-  <details class="rec" id="rec">
-    <summary>Serientermin</summary>
-    <div class="row">
+  <div id="recwrap">
+    <label class="chk"><input type="checkbox" id="rec"> Serientermin</label>
+    <div class="row hide" id="recopts">
       <div><label for="rhythm">Rhythmus</label>
         <select id="rhythm"><option value="d">Täglich</option><option value="w">Wöchentlich</option><option value="b">Alle 2 Wochen</option><option value="m">Monatlich</option><option value="y">Jährlich</option></select></div>
       <div><label for="rcount">Anzahl Termine (2–52)</label><input id="rcount" type="number" min="2" max="52" value="4" inputmode="numeric"></div>
     </div>
-  </details>
+    <p class="hint hide" id="rechint">Es werden einzelne Termine angelegt, die du danach auch einzeln ändern oder löschen kannst.</p>
+  </div>
   <div id="aerr" class="err"></div>
   <div class="save"><button class="btn" id="save">Speichern</button></div>
 </dialog>
@@ -300,7 +301,7 @@ function dl(list) {
 function syncOpen() {
   const o = $("dopen").checked;
   $("dfrom").disabled = $("dto").disabled = o;
-  $("rec").classList.toggle("hide", o || !!editId);
+  $("recwrap").classList.toggle("hide", o || !!editId);
 }
 function openForm(e) {
   editId = e ? e.id : null;
@@ -311,8 +312,12 @@ function openForm(e) {
   $("dfrom").value = e?.date_from || ""; $("dto").value = e ? (e.date_to || e.date_from || "") : ""; $("dto").min = $("dfrom").value;
   dtoAuto = !e?.date_to;
   $("price").value = e?.price ?? ""; $("link").value = e?.link || ""; $("star").checked = !!e?.starred;
-  $("rec").open = false; $("aerr").textContent = ""; syncOpen(); $("dlg").showModal();
+  $("rec").checked = false; recSync(); $("aerr").textContent = ""; syncOpen();
+  document.documentElement.classList.add("lock"); $("dlg").showModal();
 }
+function recSync() { const c = $("rec").checked; $("recopts").classList.toggle("hide", !c); $("rechint").classList.toggle("hide", !c); }
+$("rec").onchange = recSync;
+$("dlg").addEventListener("close", () => document.documentElement.classList.remove("lock"));
 $("dopen").onchange = syncOpen;
 $("dfrom").onchange = () => {
   const f = $("dfrom").value; $("dto").min = f;
@@ -348,7 +353,7 @@ $("save").onclick = async () => {
   if (!o) { const t = $("dto").value; if (t && t < a.p_from) return err("Das Enddatum liegt vor dem Startdatum."); if (t && t > a.p_from) a.p_to = t; }
   let ok;
   if (editId) ok = await act("update_event", {p_id: editId, ...a});
-  else if (!o && $("rec").open) {
+  else if (!o && $("rec").checked) {
     const n = Math.min(52, Math.max(2, Number($("rcount").value) || 2));
     const rs = await Promise.all(series(a.p_from, a.p_to, $("rhythm").value, n).map(([f, t]) =>
       sb.rpc("add_event", {p_group: gid, p_cred: cred, ...a, p_from: f, p_to: t})));
